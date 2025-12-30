@@ -49,8 +49,8 @@ exports.refreshAccessToken = async (req, res) => {
     // Set new cookie
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: false, // Set to true in production
-      sameSite: 'Strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
