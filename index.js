@@ -6,6 +6,9 @@ const path = require("path");
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy for secure cookies on Render/Heroku
+app.set("trust proxy", 1);
+
 //database
 require("./db/conn");
 
