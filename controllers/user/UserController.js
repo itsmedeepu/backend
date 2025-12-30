@@ -18,6 +18,10 @@ exports.GetUserDetails = async (req, res) => {
 };
 
 exports.refreshAccessToken = async (req, res) => {
+  // DEBUG: Log all cookies and headers
+  console.log("DEBUG: Refresh Request Headers:", req.headers);
+  console.log("DEBUG: Parsed Cookies:", req.cookies);
+
   const token = req.cookies?.refreshToken;
   if (!token) {
     console.log("REFRESH FAIL: No token in cookies");
