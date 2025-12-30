@@ -20,7 +20,14 @@ const ReviewRoutes = require("./routes/ReviewRoutes");
 //middlewares
 
 app.use(
-  cors()
+  cors({
+    origin: [
+      "http://localhost:4000",
+      "http://localhost:5173",
+      process.env.FRONTEND_URL
+    ].filter(Boolean),
+    credentials: true,
+  })
 );
 app.use(express.json({}));
 app.use(express.urlencoded({ extended: true }));
