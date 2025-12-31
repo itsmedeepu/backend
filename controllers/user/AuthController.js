@@ -7,7 +7,6 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password, role, phone } = req.body;
 
-
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
@@ -15,16 +14,24 @@ exports.register = async (req, res) => {
 
     // Password Validation
     if (password.length <= 6) {
-      return res.status(400).json({ message: "Password must be more than 6 characters long" });
+      return res
+        .status(400)
+        .json({ message: "Password must be more than 6 characters long" });
     }
     if (!/[A-Z]/.test(password)) {
-      return res.status(400).json({ message: "Password must contain at least one uppercase letter" });
+      return res.status(400).json({
+        message: "Password must contain at least one uppercase letter",
+      });
     }
     if (!/[a-z]/.test(password)) {
-      return res.status(400).json({ message: "Password must contain at least one lowercase letter" });
+      return res.status(400).json({
+        message: "Password must contain at least one lowercase letter",
+      });
     }
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      return res.status(400).json({ message: "Password must contain at least one special character" });
+      return res.status(400).json({
+        message: "Password must contain at least one special character",
+      });
     }
 
     const hashedPassword = password ? await hashPassword(password) : undefined;
@@ -74,14 +81,11 @@ exports.login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    const isProduction = process.env.NODE_ENV === "production";
-    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: isProduction || isSecure, 
-      sameSite: (isProduction || isSecure) ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     res.json({

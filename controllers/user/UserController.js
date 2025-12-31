@@ -22,6 +22,7 @@ exports.refreshAccessToken = async (req, res) => {
   console.log("DEBUG: Refresh Request Headers:", req.headers);
   console.log("DEBUG: Parsed Cookies:", req.cookies);
 
+  // Reverted to cookie-only check for proxy strategy
   const token = req.cookies?.refreshToken;
   if (!token) {
     console.log("REFRESH FAIL: No token in cookies");
