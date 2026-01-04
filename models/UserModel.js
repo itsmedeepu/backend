@@ -8,7 +8,13 @@ const userSchema = new mongoose.Schema(
     password: { type: String,required:true},
     googleId: { type: String },
     role: { type: String, enum: ["user", "farmer", "admin"], default: "user" },
-    address: { type: String },
+    address: {
+      doorNo: String,
+      street: String,
+      city: String,
+      state: String,
+      zip: String,
+    },
     farmDetails: {
       farmName: String,
       location: String,

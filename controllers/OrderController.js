@@ -5,10 +5,6 @@ const Transaction = require("../models/Transaction");
 const Delivery = require("../models/DeliveryModel");
 const mongoose = require("mongoose");
 
-/**
- * Create a new order (Checkout).
- * Handles stock deduction, order grouping by farmer, and transaction creation.
- */
 exports.createOrder = async (req, res) => {
     try {
         const { items, paymentMethod, deliveryAddress } = req.body; 
@@ -18,11 +14,25 @@ exports.createOrder = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized: User not logged in." });
         }
 
+        const buyer = await User.findById(buyerId);
+        if (!buyer) {
+             return res.status(404).json({ message: "User not found" });
+        }
+
+        const hasAddress = buyer.address && (buyer.address.street || buyer.address.city || buyer.address.zip);
+        // Fallback check if address is string (legacy)
+        const hasLegacyAddress = typeof buyer.address === 'string' && buyer.address.length > 5;
+        
+        if (!hasAddress && !hasLegacyAddress) {
+            return res.status(400).json({ message: "Please update your address details (Street, City, Zip) in your profile to place an order." });
+        }
+
+        const shippingAddress = hasAddress ? buyer.address : { street: buyer.address };
+
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ message: 'Your cart is empty. Please add items to proceed.' });
         }
 
-        // 1. Group items by farmer/vendor and validate stock
         const ordersByFarmer = {};
         const productDetailsMap = new Map();
 
@@ -43,7 +53,6 @@ exports.createOrder = async (req, res) => {
                 productDetailsMap.set(productId, product);
             }
             
-            // Check stock availability
             if (product.stock < requestedQuantity) {
                  return res.status(400).json({ 
                      message: `Insufficient stock for product: ${product.name}. Available: ${product.stock}, Requested: ${requestedQuantity}.` 
@@ -66,24 +75,21 @@ exports.createOrder = async (req, res) => {
             ordersByFarmer[farmerId].items.push({
                 product: productId,
                 quantity: requestedQuantity,
-                price: product.price // Lock in the price
+                price: product.price 
             });
             
             ordersByFarmer[farmerId].subtotal += (product.price * requestedQuantity);
         }
 
-        // 2. Create orders
         const createdOrders = [];
         const orderCreationPromises = Object.values(ordersByFarmer).map(async (orderData) => {
             
-            // Deduct stock for each item
             for (const item of orderData.items) {
                  await Product.findByIdAndUpdate(item.product, {
                      $inc: { stock: -item.quantity }
                  });
             }
 
-            // Create Order
             const newOrder = new Order({
                 user: buyerId,
                 farmer: orderData.farmer,
@@ -91,12 +97,12 @@ exports.createOrder = async (req, res) => {
                 totalAmount: orderData.subtotal,
                 status: 'Pending',
                 paymentMode: paymentMethod || 'COD',
-                deliveryAddress: deliveryAddress || null
+                deliveryAddress: deliveryAddress || null,
+                shippingAddress: shippingAddress
             });
 
             const savedOrder = await newOrder.save();
 
-            // Create Transaction
             const newTransaction = new Transaction({
                 farmer: orderData.farmer,
                 order: savedOrder._id,
@@ -107,14 +113,12 @@ exports.createOrder = async (req, res) => {
             });
             const savedTransaction = await newTransaction.save();
 
-            // Link Transaction
             savedOrder.transactionDetails = {
                 transactionId: savedTransaction._id,
                 date: savedTransaction.createdAt
             };
             await savedOrder.save();
 
-            // Populate for response
             const populatedOrder = await Order.findById(savedOrder._id)
                 .populate('items.product', 'name price image unit')
                 .populate('farmer', 'name email farmDetails phone')
@@ -139,10 +143,6 @@ exports.createOrder = async (req, res) => {
     }
 };
 
-/**
- * Get orders for the logged-in user (customer or farmer).
- * Supports filtering by status and pagination.
- */
 exports.getOrders = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -152,14 +152,12 @@ exports.getOrders = async (req, res) => {
         
         let query = {};
 
-        // Role-based filtering
         if (userRole === "farmer") {
             query.farmer = userId;
         } else {
             query.user = userId;
         }
         
-        // Apply status filter
         if (status && status !== 'All') {
             query.status = status;
         }
@@ -191,9 +189,6 @@ exports.getOrders = async (req, res) => {
     }
 };
 
-/**
- * Get a single order by ID.
- */
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -234,9 +229,6 @@ exports.getOrderById = async (req, res) => {
     }
 };
 
-/**
- * Update order status.
- */
 exports.updateOrderStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -252,12 +244,10 @@ exports.updateOrderStatus = async (req, res) => {
         const order = await Order.findById(id);
         if (!order) return res.status(404).json({ message: "Order not found" });
 
-        // only farmer of order or admin can update status
         if (String(order.farmer) !== String(userId) && userRole !== "admin") {
             return res.status(403).json({ message: "Access denied" });
         }
 
-        // Restore stock if being cancelled/rejected
         if ((status === 'Cancelled' || status === 'Rejected') && status !== order.status) {
              if (order.status !== 'Cancelled' && order.status !== 'Rejected') {
                  for (const item of order.items) {
@@ -273,7 +263,6 @@ exports.updateOrderStatus = async (req, res) => {
             order.cancellationReason = cancellationReason;
         }
 
-        // Handle Delivery Updates
         if (status === "Shipped" && deliveryDetails) {
             const deliveryObj = {
                 order: order._id,
@@ -315,9 +304,6 @@ exports.updateOrderStatus = async (req, res) => {
     }
 };
 
-/**
- * Cancel an order (For Customers).
- */
 exports.cancelOrder = async (req, res) => {
     try {
         const { id } = req.params;
@@ -333,7 +319,6 @@ exports.cancelOrder = async (req, res) => {
             return res.status(400).json({ message: "Only pending orders can be cancelled" });
         }
 
-        // Restore stock
         for (const item of order.items) {
              await Product.findByIdAndUpdate(item.product, {
                  $inc: { stock: item.quantity }

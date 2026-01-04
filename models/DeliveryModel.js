@@ -5,7 +5,7 @@ const deliverySchema = new mongoose.Schema(
     order: { type: mongoose.Schema.Types.ObjectId, ref: "Order", required: true },
     carrierName: { type: String, required: true },
     trackingId: { type: String },
-    phone: { type: String }, // Delivery partner contact
+    phone: { type: String }, 
     status: {
       type: String,
       enum: ["Pending", "Shipped", "Delivered"],
@@ -13,7 +13,7 @@ const deliverySchema = new mongoose.Schema(
     },
     shippedDate: { type: Date },
     deliveredDate: { type: Date },
-    address: { type: String }, // Target shipping address
+    address: { type: String }, 
     customerContact: {
       phone: String,
       email: String,

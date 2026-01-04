@@ -3,9 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const cloudinary = require('../utils/cloudinary');
 
-// --- Helper Functions ---
-
-// Clean up local file if it exists (legacy support)
 const cleanupFile = (filePath) => {
     if (filePath && fs.existsSync(filePath)) {
         fs.unlink(filePath, (err) => {
@@ -14,30 +11,20 @@ const cleanupFile = (filePath) => {
     }
 };
 
-// --- Controller Actions ---
-
-/**
- * Create a new product listing.
- * handles image upload via Cloudinary or local fallback.
- */
 exports.createProduct = async (req, res) => {
     try {
         const { name, description, price, category, unit, stock } = req.body;
-        const farmerId = req.user.id; // User ID from auth middleware
+        const farmerId = req.user.id; 
 
-        // Validate required fields (basic check)
         if (!name || !price || !category) {
             return res.status(400).json({ message: 'Please provide at least a name, price, and category.' });
         }
 
         let imageUrl = '';
         
-        // Handle image upload
         if (req.file) {
-            // If using Cloudinary storage, path is the remote URL
             imageUrl = req.file.path; 
         } else {
-            // Default placeholder if no image provided
             imageUrl = 'https://via.placeholder.com/150'; 
         }
 
@@ -46,7 +33,7 @@ exports.createProduct = async (req, res) => {
             description,
             price,
             category,
-            unit: unit || 'kg', // Default to kg if not specified
+            unit: unit || 'kg', 
             stock: stock || 0,
             image: imageUrl,
             farmer: farmerId
@@ -65,37 +52,30 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-/**
- * Get all products for the marketplace.
- * Supports filtering by category and search queries.
- */
 exports.getAllProducts = async (req, res) => {
     try {
         const { category, search, page = 1, limit = 20 } = req.query;
         let query = {};
 
-        // Apply filters if present
         if (category && category !== 'all') {
             query.category = category;
         }
 
         if (search) {
-            query.name = { $regex: search, $options: 'i' }; // Case-insensitive search
+            query.name = { $regex: search, $options: 'i' }; 
         }
 
         const skip = (Number(page) - 1) * Number(limit);
 
-        // Fetch products and populate farmer details (name and farm name)
         const [products, total] = await Promise.all([
             Product.find(query)
-                .populate('farmer', 'name farmName')
+                .populate('farmer', 'name farmDetails')
                 .skip(skip)
                 .limit(Number(limit))
-                .sort({ createdAt: -1 }), // Newest first
+                .sort({ createdAt: -1 }), 
             Product.countDocuments(query)
         ]);
 
-        // Return object with products array and pagination info to match frontend API expectation
         res.json({
             products,
             total,
@@ -109,9 +89,6 @@ exports.getAllProducts = async (req, res) => {
     }
 };
 
-/**
- * Get products specifically for the logged-in farmer.
- */
 exports.getMyProducts = async (req, res) => {
     try {
         const farmerId = req.user.id;
@@ -123,10 +100,6 @@ exports.getMyProducts = async (req, res) => {
     }
 };
 
-/**
- * Update an existing product.
- * Only the owner (farmer) can update their product.
- */
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
@@ -139,17 +112,13 @@ exports.updateProduct = async (req, res) => {
             return res.status(404).json({ message: 'Product not found.' });
         }
 
-        // Authorization check
         if (product.farmer.toString() !== farmerId) {
             return res.status(403).json({ message: 'You are not authorized to edit this product.' });
         }
 
-        // Handle Image Update
         if (req.file) {
-            // 1. Update the image URL in the database
             updates.image = req.file.path;
 
-            // 2. Try to clean up the old image if it was a local file (legacy)
             if (product.image && !product.image.startsWith('http')) {
                  const oldPath = path.join(__dirname, '..', product.image);
                  cleanupFile(oldPath);
@@ -169,9 +138,6 @@ exports.updateProduct = async (req, res) => {
     }
 };
 
-/**
- * Delete a product.
- */
 exports.deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
@@ -187,7 +153,6 @@ exports.deleteProduct = async (req, res) => {
             return res.status(403).json({ message: 'You are not authorized to delete this product.' });
         }
 
-        // Attempt to clean up local image file
         if (product.image && !product.image.startsWith('http')) {
              const imagePath = path.join(__dirname, '..', product.image);
              cleanupFile(imagePath);
@@ -203,12 +168,9 @@ exports.deleteProduct = async (req, res) => {
     }
 };
 
-/**
- * Get a single product by ID.
- */
 exports.getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id).populate('farmer', 'name email farmName');
+        const product = await Product.findById(req.params.id).populate('farmer', 'name email farmDetails');
         
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });

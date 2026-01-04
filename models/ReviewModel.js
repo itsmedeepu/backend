@@ -11,7 +11,6 @@ const reviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent multiple reviews for the same order by the same user
 reviewSchema.index({ order: 1, user: 1 }, { unique: true });
 
 const ReviewModel = mongoose.model("Review", reviewSchema);

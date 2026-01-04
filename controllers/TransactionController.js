@@ -16,7 +16,6 @@ exports.createTransaction = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // only farmer of order or admin can create transaction
     if (
       String(order.farmer) !== String(req.user?.id) &&
       req.user?.role !== "admin"
@@ -54,7 +53,6 @@ exports.getTransactions = async (req, res) => {
 
     if (req.user?.role === "farmer") filter.farmer = req.user.id;
     else if (req.user?.role === "user") {
-      // find transactions for orders placed by this user
       const userOrders = await Order.find({ user: req.user.id }).select("_id");
       const orderIds = userOrders.map((o) => o._id);
       filter.order = { $in: orderIds };
@@ -91,7 +89,6 @@ exports.getTransactionById = async (req, res) => {
     const tx = await Transaction.findById(id).populate("order");
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
 
-    // allow farmer owner, admin, or user who owns the order
     if (
       String(tx.farmer) !== String(req.user?.id) &&
       req.user?.role !== "admin" &&
@@ -116,7 +113,6 @@ exports.updateTransaction = async (req, res) => {
     const tx = await Transaction.findById(id);
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
 
-    // only farmer owner or admin can update
     if (
       String(tx.farmer) !== String(req.user?.id) &&
       req.user?.role !== "admin"
@@ -149,7 +145,6 @@ exports.deleteTransaction = async (req, res) => {
     const tx = await Transaction.findById(id);
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
 
-    // only admin or farmer owner can delete
     if (
       String(tx.farmer) !== String(req.user?.id) &&
       req.user?.role !== "admin"

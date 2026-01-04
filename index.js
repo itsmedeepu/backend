@@ -11,7 +11,6 @@ const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 3000;
 
-// Socket.io setup
 const io = new Server(server, {
   cors: {
     origin: [
@@ -24,10 +23,9 @@ const io = new Server(server, {
   }
 });
 
-const onlineUsers = new Map(); // userId -> socketId
+const onlineUsers = new Map(); 
 
 io.on("connection", (socket) => {
-
 
   socket.on("register_user", (userId) => {
     onlineUsers.set(userId, socket.id);
@@ -52,7 +50,6 @@ io.on("connection", (socket) => {
         timestamp: new Date()
       });
       await newChat.save();
-
       
       socket.to(data.room).emit("receive_message", data);
 
@@ -90,14 +87,9 @@ io.on("connection", (socket) => {
   });
 });
 
-
-// Trust proxy for secure cookies on Render/Heroku
 app.set("trust proxy", 1);
 
-//database
 require("./db/conn");
-
-//require Routes
 
 const UserRoutes = require("./routes/UserRoutes");
 const ProductRoutes = require("./routes/ProductRoutes");
@@ -106,14 +98,11 @@ const TransactionRoutes = require("./routes/TransactionRoute");
 const ReviewRoutes = require("./routes/ReviewRoutes");
 const ChatRoutes = require("./routes/ChatRoutes");
 
-//middlewares
-
 app.use(
   cors({
     origin: [
       "http://localhost:4000",
       "http://localhost:5173",
-      "https://agridirect-frontend.onrender.com",
       process.env.FRONTEND_URL
     ].filter(Boolean),
     credentials: true,
@@ -123,7 +112,6 @@ app.use(express.json({}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// serve uploaded files (Legacy support for local images)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/v1/agridirect/user", UserRoutes);
@@ -145,7 +133,8 @@ app.use((err, req, res, next) => {
 app.get("/", (req, res) => {
   res.send({ message: "Hii from the server" });
 });
-//start the server
 server.listen(port, () => {
+
+  console.log("backend server started")
 
 });

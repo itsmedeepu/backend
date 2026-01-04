@@ -12,7 +12,6 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Password Validation
     if (password.length <= 6) {
       return res
         .status(400)
@@ -97,7 +96,7 @@ exports.login = async (req, res) => {
       secure: isProduction || isSecure,
       sameSite: (isProduction || isSecure) ? "none" : "lax",
       path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
     });
 
     res.json({

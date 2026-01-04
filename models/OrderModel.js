@@ -22,11 +22,17 @@ const orderSchema = new mongoose.Schema(
     },
     delivery: { type: mongoose.Schema.Types.ObjectId, ref: "Delivery" },
     cancellationReason: { type: String },
+    shippingAddress: {
+      doorNo: String,
+      street: String,
+      city: String,
+      state: String,
+      zip: String,
+    },
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
-// Virtual populate for review
 orderSchema.virtual("review", {
   ref: "Review",
   localField: "_id",

@@ -7,13 +7,10 @@ exports.addReview = async (req, res) => {
     const { orderId, farmerId, rating, comment } = req.body;
     const userId = req.user.id;
 
-
-
     if (!orderId || !farmerId || !rating || !comment) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // specific validation: verify order exists and is delivered
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -23,7 +20,6 @@ exports.addReview = async (req, res) => {
       return res.status(400).json({ message: "You can only review delivered orders" });
     }
 
-    // verify the order belongs to this user and farmer
     if (String(order.user) !== userId) {
       return res.status(403).json({ message: "You did not place this order" });
     }
@@ -32,7 +28,6 @@ exports.addReview = async (req, res) => {
        return res.status(400).json({ message: "Order farmer does not match review farmer" });
     }
 
-    // check if review already exists
     const existingReview = await Review.findOne({ order: orderId, user: userId });
     if (existingReview) {
       return res.status(400).json({ message: "You have already reviewed this order" });
@@ -73,7 +68,7 @@ exports.getAllReviews = async (req, res) => {
       .populate("user", "name")
       .populate("farmer", "name farmDetails")
       .sort("-createdAt")
-      .limit(10); // Limit to 10 most recent reviews
+      .limit(10); 
     
     res.json({ reviews });
   } catch (error) {

@@ -19,10 +19,7 @@ exports.GetUserDetails = async (req, res) => {
 };
 
 exports.refreshAccessToken = async (req, res) => {
-  // DEBUG: Log all cookies and headers
 
-
-  // Reverted to cookie-only check for proxy strategy
   const token = req.cookies?.refreshToken;
   if (!token) {
 
@@ -41,27 +38,23 @@ exports.refreshAccessToken = async (req, res) => {
       return res.status(403).json({ message: "refresh token expired" });
     }
 
-    // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens({
        id: user._id, 
        role: user.role 
     });
 
-    // Update DB
     user.refreshToken = newRefreshToken;
     await user.save();
 
-    // Determine cookie security settings
     const isProduction = process.env.NODE_ENV === "production";
     const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
 
-    // Set new cookie
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
       secure: isProduction || isSecure,
       sameSite: (isProduction || isSecure) ? "none" : "lax",
       path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000 
     });
 
     res.json({ 
@@ -148,7 +141,6 @@ exports.changePassword = async (req, res) => {
     }
 
     user.password = await hashPassword(newPassword);
-    // user.refreshToken = null; // Optional: invalidate other sessions
     await user.save();
 
     res.json({ message: "Password updated successfully." });
@@ -166,23 +158,18 @@ exports.forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Generate token
     const resetToken = crypto.randomBytes(20).toString('hex');
 
-    // Hash and save to DB
     user.resetPasswordToken = crypto
       .createHash('sha256')
       .update(resetToken)
       .digest('hex');
       
-    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; 
 
     await user.save();
 
-    // MOCK EMAIL SENDING
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
-    
-
 
     res.json({ message: "Email sent (Check server console for link)" });
   } catch (err) {
