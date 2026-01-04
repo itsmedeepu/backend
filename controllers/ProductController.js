@@ -69,7 +69,7 @@ exports.getAllProducts = async (req, res) => {
 
         const [products, total] = await Promise.all([
             Product.find(query)
-                .populate('farmer', 'name farmDetails')
+                .populate('farmer', 'name farmDetails averageRating ratingCount')
                 .skip(skip)
                 .limit(Number(limit))
                 .sort({ createdAt: -1 }), 
@@ -170,7 +170,7 @@ exports.deleteProduct = async (req, res) => {
 
 exports.getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id).populate('farmer', 'name email farmDetails');
+        const product = await Product.findById(req.params.id).populate('farmer', 'name email farmDetails averageRating ratingCount');
         
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });

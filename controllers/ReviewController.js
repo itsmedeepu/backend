@@ -41,6 +41,26 @@ exports.addReview = async (req, res) => {
       comment,
     });
 
+    // Update farmer's average rating
+    const stats = await Review.aggregate([
+      { $match: { farmer: new (require('mongoose').Types.ObjectId)(farmerId) } },
+      {
+        $group: {
+          _id: "$farmer",
+          averageRating: { $avg: "$rating" },
+          ratingCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    if (stats.length > 0) {
+      const User = require("../models/UserModel");
+      await User.findByIdAndUpdate(farmerId, {
+        averageRating: stats[0].averageRating,
+        ratingCount: stats[0].ratingCount
+      });
+    }
+
     res.status(201).json({ message: "Review added successfully", review });
   } catch (error) {
     console.error("Error adding review:", error);
