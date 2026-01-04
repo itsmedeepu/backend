@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
     averageRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
 const UserModel = mongoose.model("User", userSchema);
