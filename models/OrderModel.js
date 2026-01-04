@@ -20,6 +20,8 @@ const orderSchema = new mongoose.Schema(
       transactionId: { type: mongoose.Schema.Types.ObjectId, ref: "Transaction" }, 
       date: Date 
     },
+    delivery: { type: mongoose.Schema.Types.ObjectId, ref: "Delivery" },
+    cancellationReason: { type: String },
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

@@ -6,13 +6,18 @@ const multer = require("multer");
 const ProductController = require("../controllers/ProductController");
 const { BasicAuth, UserAuth } = require("../middlewares/Auth");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "..", "uploads", "products"));
-  },
-  filename: (req, file, cb) => {
-    const safeName = `${Date.now()}-${file.originalname.replace(/\s+/g, "-")}`;
-    cb(null, safeName);
+const cloudinary = require("../utils/cloudinary");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "agridirect/products",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    public_id: (req, file) => {
+       const name = file.originalname.split('.')[0];
+       return `${Date.now()}-${name}`;
+    }
   },
 });
 

@@ -12,6 +12,7 @@ const ProductSchema = new mongoose.Schema({
   description: String,
   farmer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   available: { type: Boolean, default: true },
+  stock: { type: Number, default: 0 },
 });
 
 const ProductModel = mongoose.model("Product", ProductSchema);

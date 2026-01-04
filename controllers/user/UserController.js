@@ -2,6 +2,7 @@ const User = require("../../models/UserModel.js");
 const { comparePassword, hashPassword } = require("../../utils/hash.js");
 const jwt = require("jsonwebtoken");
 const generateTokens = require("../../utils/jwt");
+const crypto = require("crypto");
 
 exports.GetUserDetails = async (req, res) => {
   let user;
@@ -19,25 +20,24 @@ exports.GetUserDetails = async (req, res) => {
 
 exports.refreshAccessToken = async (req, res) => {
   // DEBUG: Log all cookies and headers
-  console.log("DEBUG: Refresh Request Headers:", req.headers);
-  console.log("DEBUG: Parsed Cookies:", req.cookies);
+
 
   // Reverted to cookie-only check for proxy strategy
   const token = req.cookies?.refreshToken;
   if (!token) {
-    console.log("REFRESH FAIL: No token in cookies");
+
     return res.status(401).json({ message: "refresh token not found" });
   }
 
   const user = await User.findOne({ refreshToken: token });
   if (!user) {
-    console.log("REFRESH FAIL: Token not found in DB or mismatch for token:", token.substring(0, 10) + "...");
+
     return res.status(403).json({ message: "refresh token invalid" });
   }
 
   jwt.verify(token, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
     if (err) {
-      console.log("REFRESH FAIL: Verification failed:", err.message);
+
       return res.status(403).json({ message: "refresh token expired" });
     }
 
@@ -128,7 +128,7 @@ exports.updateUserDetails = async (req, res) => {
   }
 };
 
-exports.resetPassword = async (req, res) => {
+exports.changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { oldpassword: oldPassword, newpassword: newPassword } = req.body;
@@ -148,10 +148,75 @@ exports.resetPassword = async (req, res) => {
     }
 
     user.password = await hashPassword(newPassword);
-    user.refreshToken = null; // invalidate sessions
+    // user.refreshToken = null; // Optional: invalidate other sessions
     await user.save();
 
-    res.json({ message: "Password updated successfully. Please login again." });
+    res.json({ message: "Password updated successfully." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate token
+    const resetToken = crypto.randomBytes(20).toString('hex');
+
+    // Hash and save to DB
+    user.resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+      
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save();
+
+    // MOCK EMAIL SENDING
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+    
+
+
+    res.json({ message: "Email sent (Check server console for link)" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.resetPasswordWithToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if(!password) return res.status(400).json({ message: "New password required" });
+
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    user.password = await hashPassword(password);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: "Password reset successful. Please login." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

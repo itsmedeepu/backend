@@ -42,6 +42,14 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       role: role || "user",
       phone: phone || undefined,
+      farmDetails:
+        role === "farmer" && req.body.farmName
+          ? {
+              farmName: req.body.farmName,
+              location: "",
+              description: "",
+            }
+          : undefined,
     });
 
     res.status(201).json({

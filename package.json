@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --env-file=.env index.js",
-    "start":"node --env-file=.env index.js"
+    "start": "node --env-file=.env index.js"
   },
   "author": "Deepak S",
   "license": "ISC",
@@ -22,8 +22,10 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.2",
     "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
     "nodemon": "^3.1.11",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "socket.io": "^4.8.3"
   }
 }

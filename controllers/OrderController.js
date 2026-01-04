@@ -2,19 +2,18 @@ const Order = require("../models/OrderModel");
 const Product = require("../models/ProductModel");
 const User = require("../models/UserModel");
 const Transaction = require("../models/Transaction");
+const Delivery = require("../models/DeliveryModel");
 const Review = require("../models/ReviewModel"); // Ensure Review model is registered
 const mongoose = require("mongoose");
 
-console.log('--- REFRESH: Model Registry ---');
-console.log('Available Models:', mongoose.modelNames());
-console.log('Transaction Model Registered:', mongoose.modelNames().includes('Transaction'));
+
 
 exports.createOrder = async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    console.log('Order creation request body:', JSON.stringify(req.body, null, 2));
+
 
     const { items, paymentMode, paymentStatus, paymentAmount } = req.body; // items: [{ product: id, quantity }]
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -67,7 +66,7 @@ exports.createOrder = async (req, res) => {
       const finalPaymentMode = paymentMode || "COD";
       const finalPaymentStatus = paymentStatus || "Pending";
       
-      console.log('Creating transaction with:', { finalPaymentMode, finalPaymentStatus, groupTotal });
+
       
       const tx = await Transaction.create({
         farmer: farmerId,
@@ -80,7 +79,7 @@ exports.createOrder = async (req, res) => {
       order.transactionDetails = { transactionId: tx._id, date: new Date() };
       await order.save();
       
-      console.log('Transaction created:', tx._id, 'for order:', order._id);
+
 
       let populatedOrder = await Order.findById(order._id)
         .populate("items.product", "name price image")
@@ -90,14 +89,11 @@ exports.createOrder = async (req, res) => {
 
       // Manual population fallback if needed
       if (populatedOrder && populatedOrder.transactionDetails?.transactionId && typeof populatedOrder.transactionDetails.transactionId !== 'object') {
-        console.log('Manual population needed for order:', order._id);
+
         populatedOrder = await populatedOrder.populate("transactionDetails.transactionId");
       }
 
-      console.log('--- SERVER DEBUG: CREATED ORDER ---');
-      console.log('Order ID:', populatedOrder._id);
-      console.log('Transaction Details:', populatedOrder.transactionDetails);
-      console.log('Transaction ID type:', typeof populatedOrder.transactionDetails?.transactionId);
+
 
       createdOrders.push(populatedOrder);
     }
@@ -128,8 +124,9 @@ exports.getOrders = async (req, res) => {
       Order.find(filter)
         .populate("items.product", "name price image")
         .populate("farmer", "name email phone farmDetails")
-        .populate("user", "name email phone")
+        .populate("user", "name email phone address")
         .populate("transactionDetails.transactionId")
+        .populate("delivery")
         .populate("review")
         .sort(sort)
         .skip(skip)
@@ -137,10 +134,9 @@ exports.getOrders = async (req, res) => {
       Order.countDocuments(filter),
     ]);
 
-    console.log('--- SERVER DEBUG: GET ORDERS ---');
-    console.log('Orders Fetched:', orders.length);
+
     if (orders.length > 0) {
-      console.log('First Order Transaction:', JSON.stringify(orders[0].transactionDetails?.transactionId, null, 2));
+
     }
 
     res.json({ orders, total, page: Number(page), limit: Number(limit) });
@@ -155,8 +151,9 @@ exports.getOrderById = async (req, res) => {
     const order = await Order.findById(id)
       .populate("items.product", "name price image")
       .populate("farmer", "name email phone farmDetails")
-      .populate("user", "name email phone")
+      .populate("user", "name email phone address")
       .populate("review")
+      .populate("delivery")
       .populate({
         path: "transactionDetails.transactionId",
         model: Transaction
@@ -182,8 +179,8 @@ exports.getOrderById = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    const allowed = ["Pending", "Accepted", "Rejected", "Shipped", "Delivered"];
+    const { status, deliveryDetails, cancellationReason } = req.body;
+    const allowed = ["Pending", "Accepted", "Rejected", "Shipped", "Delivered", "Cancelled"];
     if (!allowed.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -200,7 +197,45 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     order.status = status;
+    if ((status === 'Cancelled' || status === 'Rejected') && cancellationReason) {
+      order.cancellationReason = cancellationReason;
+    }
+
+    if (status === "Shipped" && deliveryDetails) {
+      // Create or update Delivery model
+      const deliveryObj = {
+        order: order._id,
+        carrierName: deliveryDetails.carrierName || "Pending",
+        trackingId: deliveryDetails.trackingId || "N/A",
+        phone: deliveryDetails.phone || "N/A",
+        status: "Shipped",
+        shippedDate: new Date(),
+        address: deliveryDetails.customerAddress || order.user?.address,
+        customerContact: {
+          name: deliveryDetails.customerName || order.user?.name,
+          phone: deliveryDetails.customerPhone || order.user?.phone,
+          email: deliveryDetails.customerEmail || order.user?.email,
+        },
+      };
+
+      let deliveryDoc;
+      if (order.delivery) {
+        deliveryDoc = await Delivery.findByIdAndUpdate(order.delivery, deliveryObj, { new: true });
+      } else {
+        deliveryDoc = new Delivery(deliveryObj);
+        await deliveryDoc.save();
+        order.delivery = deliveryDoc._id;
+      }
+    } else if (status === "Delivered" && order.delivery) {
+      await Delivery.findByIdAndUpdate(order.delivery, { 
+        status: "Delivered", 
+        deliveredDate: new Date() 
+      });
+    }
+
     await order.save();
+    // Populate delivery for the response
+    await order.populate("delivery");
 
     res.json({ message: "Order status updated", order });
   } catch (err) {

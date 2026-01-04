@@ -9,7 +9,7 @@ exports.createProduct = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const { name, price, category, unit, image, available, description } = req.body;
+    const { name, price, category, unit, image, available, description, stock } = req.body;
 
     if (!name || price == null || !unit) {
       return res
@@ -17,10 +17,8 @@ exports.createProduct = async (req, res) => {
         .json({ message: "name, price and unit are required" });
     }
 
-    // handle uploaded file (multer)
-    const imagePath = req.file
-      ? `/uploads/products/${req.file.filename}`
-      : image;
+    // handle uploaded file (multer-storage-cloudinary provides path as url)
+    const imagePath = req.file ? req.file.path : image;
 
     const product = await Product.create({
       name,
@@ -30,6 +28,7 @@ exports.createProduct = async (req, res) => {
       image: imagePath,
       available: available ?? true,
       description,
+      stock: stock ? Number(stock) : 0,
       farmer: req.user.id,
     });
 
@@ -131,21 +130,24 @@ exports.updateProduct = async (req, res) => {
     }
 
     const updates = {};
-    const allowed = ["name", "price", "category", "unit", "image", "available", "description"];
+    const allowed = ["name", "price", "category", "unit", "image", "available", "description", "stock"];
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
 
-    // if a new file was uploaded, set image and remove old file if local
+    // if a new file was uploaded, set image
     if (req.file) {
-      const newImagePath = `/uploads/products/${req.file.filename}`;
+      const newImagePath = req.file.path;
       updates.image = newImagePath;
 
+      // Only delete local file if it was a local upload
       if (product.image && product.image.startsWith("/uploads/products/")) {
         const fileOnDisk = path.join(__dirname, "..", product.image);
-        fs.unlink(fileOnDisk, (err) => {
-          // non-fatal
-        });
+        try {
+          if (fs.existsSync(fileOnDisk)) {
+             fs.unlinkSync(fileOnDisk);
+          }
+        } catch(e) { /* ignore */ }
       }
     }
 

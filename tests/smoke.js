@@ -2,7 +2,7 @@
   const baseUrl =
     process.env.BASE_URL || "http://localhost:3000/api/v1/agridirect";
   const log = (label, obj) =>
-    console.log("\n=== " + label + " ===\n", JSON.stringify(obj, null, 2));
+
 
   const doRequest = async (path, opts = {}) => {
     const res = await fetch(baseUrl + path, opts);
@@ -121,7 +121,7 @@
     });
     log("get order", r);
 
-    console.log("\nSMOKE TEST COMPLETE");
+
   } catch (err) {
     console.error("SMOKE TEST ERROR", err);
     process.exit(1);
