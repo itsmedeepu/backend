@@ -98,6 +98,12 @@ exports.updateUserDetails = async (req, res) => {
     const userId = req.user.id;
     const { name, email, address, phone } = req.body;
 
+    if (phone && phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({
+        message: "Phone number must be exactly 10 digits",
+      });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {

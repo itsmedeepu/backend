@@ -33,6 +33,12 @@ exports.register = async (req, res) => {
       });
     }
 
+    if (!phone || phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({
+        message: "Phone number must be exactly 10 digits",
+      });
+    }
+
     const hashedPassword = password ? await hashPassword(password) : undefined;
 
     const user = await User.create({
