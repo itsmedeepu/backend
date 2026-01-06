@@ -6,8 +6,9 @@ const { hashPassword, comparePassword } = require("../../utils/hash");
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, phone } = req.body;
+    const normalizedEmail = email.toLowerCase();
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -43,7 +44,7 @@ exports.register = async (req, res) => {
 
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || "user",
       phone: phone || undefined,
@@ -73,8 +74,9 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email.toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user || !user.password) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
